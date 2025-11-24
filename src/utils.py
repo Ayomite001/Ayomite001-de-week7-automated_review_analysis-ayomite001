@@ -36,5 +36,81 @@ raw_sheet.update([df.columns.values.tolist()] + df.values.tolist())
 
 
 
+def staging(client = gspread.authorize(cred), sheet_id = "11JDDG8EdE5aVMQHZmFYIVspP7Epo9tAeFcId13HZPB0"):
+
+    workbook = client.open_by_key(sheet_id)
+    raw_sheet = workbook.worksheet("raw_data")
+
+    raw_data = raw_sheet.get_all_records()
+    df = pd.DataFrame(raw_data)
+
+
+    df.dropna(how="all", inplace=True)
+
+    # strip spaces & lowercase
+    for col in df.select_dtypes(include="object").columns:
+        df[col] = df[col].str.strip().str.lower()
+
+    try:
+        staging_sheet = workbook.worksheet("staging")
+        staging_sheet.clear()
+    except gspread.exceptions.WorksheetNotFound:
+        staging_sheet = workbook.add_worksheet(
+            title="staging",
+            rows=len(df) + 5,
+            cols=len(df.columns) + 5
+        )
+
+    # 5. Upload cleaned data
+    staging_sheet.update(
+        [df.columns.tolist()] + df.values.tolist()
+    )
+
+    print("Staging worksheet created and cleaned data loaded successfully.")
+
+
+
+def processed(client = gspread.authorize(cred), sheet_id = "11JDDG8EdE5aVMQHZmFYIVspP7Epo9tAeFcId13HZPB0"):
+
+    workbook = client.open_by_key(sheet_id)
+
+    raw_sheet = workbook.worksheet("staging")
+
+    staging = raw_sheet.get_all_records()
+    df  = pd.DataFrame(staging)
+
+    df["AI Sentiment"] = ""
+    df["AI Summary"] = ""
+    df["Action Needed"] = ""
+
+
+    try:
+        processed_sheet = workbook.worksheet("processed")
+        processed_sheet.clear()
+    except gspread.exceptions.WorksheetNotFound:
+        processed_sheet = workbook.add_worksheet(
+            title="processed",
+            rows=len(df) + 5,
+            cols=len(df.columns) + 5
+        )
+
+    # Upload dataframe to processed sheet
+    processed_sheet.update([df.columns.values.tolist()] + df.values.tolist())
+
+    print("Processed sheet created successfully!")
+    return processed_sheet
+
+    
+
+staging()
+processed()
+
+
+
+
+
+
+
+
 
 
